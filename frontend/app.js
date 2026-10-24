@@ -2039,6 +2039,20 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("downloadBtn")?.addEventListener("click", downloadCsv);
   document.getElementById("csvBtn")?.addEventListener("click", downloadCsv);
 
+  // More Details toggle (for judges — reveals map, chart, table)
+  document.getElementById("moreDetailsBtn")?.addEventListener("click", () => {
+    const section = document.getElementById("moreDetailsSection");
+    const arrow = document.getElementById("moreDetailsArrow");
+    const btn = document.getElementById("moreDetailsBtn");
+    if (!section) return;
+    const isHidden = section.classList.toggle("hidden");
+    if (arrow) arrow.textContent = isHidden ? "▼" : "▲";
+    if (btn) btn.setAttribute("aria-expanded", (!isHidden).toString());
+    if (!isHidden && leafletMap) {
+      setTimeout(() => leafletMap.invalidateSize(), 200);
+    }
+  });
+
   // 12. Table sorting
   setupTableSorting();
 
