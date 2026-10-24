@@ -1612,7 +1612,7 @@ function setupMic() {
 
         showToast("Transcribing crop voice input…");
         try {
-          const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+          const res = await fetch(`/api/transcribe?lang=${encodeURIComponent(currentLang)}`, { method: "POST", body: formData });
           if (!res.ok) throw new Error("Whisper transcription unavailable");
           const data = await res.json();
           if (data.text) {

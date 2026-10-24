@@ -6,6 +6,7 @@ JSON error and the UI hides the microphone.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -34,11 +35,14 @@ def _get_model():
         )
         raise WhisperUnavailable(_load_error)
     try:
-        # "base" is small enough for a MacBook; CPU + int8 runs on Apple Silicon.
-        _model = WhisperModel("base", device="cpu", compute_type="int8")
-    except Exception as exc:  # model download or runtime failure
-        _load_error = f"Could not load Whisper model: {exc}"
-        raise WhisperUnavailable(_load_error)
+        model_name = os.getenv("WHISPER_MODEL", "small")
+        _model = WhisperModel(model_name, device="cpu", compute_type="int8")
+    except Exception as exc:
+        try:
+            _model = WhisperModel("base", device="cpu", compute_type="int8")
+        except Exception:
+            _load_error = f"Could not load Whisper model: {exc}"
+            raise WhisperUnavailable(_load_error)
     return _model
 
 
@@ -47,7 +51,9 @@ def transcribe_file(path: Path, language: Optional[str] = None) -> str:
     model = _get_model()
     lang = None
     if language:
-        lang = "hi" if language.lower().startswith("hi") else "en"
+        code = language.strip().lower()[:2]
+        if code in {"hi", "mr", "pa", "gu", "ta", "te", "en"}:
+            lang = code
     segments, _info = model.transcribe(str(path), language=lang)
     parts = [seg.text.strip() for seg in segments if seg.text and seg.text.strip()]
     return " ".join(parts).strip()
