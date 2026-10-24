@@ -1617,12 +1617,7 @@ function setupMic() {
           const data = await res.json();
           if (data.text) {
             const cleanText = data.text.trim();
-            const input = document.getElementById("cropInput");
-            if (input) {
-              input.value = cleanText;
-              populateCropDropdown(cleanText);
-            }
-            showToast(`Heard: "${cleanText}"`);
+            await applyVoiceFilter(cleanText);
           }
         } catch (err) {
           showToast("Speech transcription unavailable (Whisper not installed)", true);
@@ -1631,11 +1626,284 @@ function setupMic() {
 
       mediaRecorder.start();
       micBtn.classList.add("recording");
-      showToast("Listening… speak crop name");
+      showToast("Listening… speak crop name (e.g. Onion, Tamatar, Soybean)");
     } catch (err) {
       showToast("Microphone access denied", true);
     }
   });
+}
+
+// ── SMART VOICE FILTER MATCHER ──
+const SPOKEN_CROP_SYNONYMS = {
+  onion: "Onion",
+  anian: "Onion",
+  anion: "Onion",
+  onions: "Onion",
+  pyaz: "Onion",
+  pyaaz: "Onion",
+  kanda: "Onion",
+  dungli: "Onion",
+  dungri: "Onion",
+  vengayam: "Onion",
+  ullipaya: "Onion",
+  tomato: "Tomato",
+  tomatoes: "Tomato",
+  tamatar: "Tomato",
+  tometo: "Tomato",
+  tameta: "Tomato",
+  thakkali: "Tomato",
+  potato: "Potato",
+  potatoes: "Potato",
+  aloo: "Potato",
+  alu: "Potato",
+  batata: "Potato",
+  bataka: "Potato",
+  urulaikizhangu: "Potato",
+  wheat: "Wheat",
+  gehu: "Wheat",
+  gehun: "Wheat",
+  gahu: "Wheat",
+  kanak: "Wheat",
+  ghau: "Wheat",
+  rice: "Rice",
+  paddy: "Rice",
+  dhan: "Rice",
+  chawal: "Rice",
+  tandul: "Rice",
+  jhona: "Rice",
+  soybean: "Soybean",
+  soyabean: "Soybean",
+  soya: "Soybean",
+  cotton: "Cotton",
+  kapas: "Cotton",
+  kapus: "Cotton",
+  maize: "Maize",
+  makka: "Maize",
+  corn: "Maize",
+  bhutta: "Maize",
+  mustard: "Mustard",
+  sarson: "Mustard",
+  rai: "Mustard",
+  garlic: "Garlic",
+  lahsun: "Garlic",
+  lasun: "Garlic",
+  ginger: "Ginger",
+  adrak: "Ginger",
+  turmeric: "Turmeric",
+  haldi: "Turmeric",
+  chilli: "Chilli",
+  chili: "Chilli",
+  mirch: "Chilli",
+  mirchi: "Chilli",
+  gram: "Gram",
+  chana: "Gram",
+  chole: "Gram",
+  harbhara: "Gram",
+  apple: "Apple",
+  seb: "Apple",
+  banana: "Banana",
+  kela: "Banana",
+  mango: "Mango",
+  aam: "Mango",
+};
+
+const SPOKEN_STATE_SYNONYMS = {
+  gujarat: "Gujarat",
+  gujarati: "Gujarat",
+  maharashtra: "Maharashtra",
+  marathi: "Maharashtra",
+  punjab: "Punjab",
+  punjabi: "Punjab",
+  rajasthan: "Rajasthan",
+  rajasthani: "Rajasthan",
+  haryana: "Haryana",
+  haryanvi: "Haryana",
+  madhyapradesh: "Madhya Pradesh",
+  "madhya pradesh": "Madhya Pradesh",
+  mp: "Madhya Pradesh",
+  uttarpradesh: "Uttar Pradesh",
+  "uttar pradesh": "Uttar Pradesh",
+  up: "Uttar Pradesh",
+  karnataka: "Karnataka",
+  kannada: "Karnataka",
+  tamilnadu: "Tamil Nadu",
+  "tamil nadu": "Tamil Nadu",
+  tamil: "Tamil Nadu",
+  andhrapradesh: "Andhra Pradesh",
+  "andhra pradesh": "Andhra Pradesh",
+  andhra: "Andhra Pradesh",
+  telangana: "Telangana",
+  telugu: "Telangana",
+  bengal: "West Bengal",
+  bengali: "West Bengal",
+  westbengal: "West Bengal",
+  "west bengal": "West Bengal",
+  bihar: "Bihar",
+  bihari: "Bihar",
+  odisha: "Odisha",
+  orissa: "Odisha",
+  kerala: "Kerala",
+  delhi: "Delhi",
+  uttarakhand: "Uttarakhand",
+  himachal: "Himachal Pradesh",
+  assam: "Assam",
+};
+
+function levenshteinDist(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+async function applyVoiceFilter(rawText) {
+  if (!rawText || !rawText.trim()) return;
+
+  const normalized = rawText.toLowerCase().replace(/[^\w\s\u0900-\u0D7F]/gi, " ").replace(/\s+/g, " ").trim();
+  const words = normalized.split(" ");
+
+  // 1. Match Crop
+  let matchedCrop = null;
+
+  // Exact phrase check in known synonyms
+  for (const [key, cropName] of Object.entries(SPOKEN_CROP_SYNONYMS)) {
+    if (normalized.includes(key)) {
+      matchedCrop = cropName;
+      break;
+    }
+  }
+
+  // Check appMeta.crops directly
+  if (!matchedCrop && appMeta && appMeta.crops) {
+    for (const crop of appMeta.crops) {
+      if (normalized.includes(crop.toLowerCase())) {
+        matchedCrop = crop;
+        break;
+      }
+      const labels = CROP_LABELS[crop];
+      if (labels) {
+        for (const rWord of Object.values(labels)) {
+          if (rWord && normalized.includes(rWord.toLowerCase())) {
+            matchedCrop = crop;
+            break;
+          }
+        }
+      }
+      if (matchedCrop) break;
+    }
+  }
+
+  // Fuzzy word matching (allows 1 typo, e.g. "anian" -> "onion", "alloo" -> "aloo")
+  if (!matchedCrop) {
+    for (const w of words) {
+      if (w.length < 3) continue;
+      for (const [alias, crop] of Object.entries(SPOKEN_CROP_SYNONYMS)) {
+        if (alias.length >= 3 && Math.abs(alias.length - w.length) <= 1) {
+          if (levenshteinDist(w, alias) <= 1) {
+            matchedCrop = crop;
+            break;
+          }
+        }
+      }
+      if (matchedCrop) break;
+    }
+  }
+
+  // 2. Match State & District if spoken
+  let matchedState = null;
+  for (const [alias, stateName] of Object.entries(SPOKEN_STATE_SYNONYMS)) {
+    if (normalized.includes(alias)) {
+      matchedState = stateName;
+      break;
+    }
+  }
+
+  if (!matchedState && appMeta && appMeta.states) {
+    for (const st of appMeta.states) {
+      if (normalized.includes(st.toLowerCase())) {
+        matchedState = st;
+        break;
+      }
+    }
+  }
+
+  let matchedDistrict = null;
+  if (appMeta && appMeta.districts) {
+    for (const d of appMeta.districts) {
+      const dLower = d.district.toLowerCase();
+      if (dLower.length > 3 && normalized.includes(dLower)) {
+        matchedDistrict = d.district;
+        matchedState = d.state;
+        break;
+      }
+    }
+  }
+
+  // Apply State / District filter
+  if (matchedState) {
+    const stateSel = document.getElementById("stateSelect");
+    if (stateSel) {
+      stateSel.value = matchedState;
+      onStateChanged();
+    }
+    if (matchedDistrict) {
+      const distSel = document.getElementById("districtSelect");
+      if (distSel) {
+        distSel.value = matchedDistrict;
+        await onDistrictChanged();
+      }
+    } else {
+      // Resolve state centroid coordinates
+      try {
+        const res = await fetch(`/api/geocode?state=${encodeURIComponent(matchedState)}&district=${encodeURIComponent(matchedState)}`);
+        if (res.ok) {
+          const gData = await res.json();
+          userCoords = {
+            lat: gData.lat,
+            lon: gData.lon,
+            state: matchedState,
+            district: null,
+            isApprox: true,
+            source: "manual",
+          };
+          const locStatus = document.getElementById("locStatus");
+          if (locStatus) {
+            locStatus.innerHTML = `<span class="loc-badge manual">📍 State: ${matchedState} (Centroid)</span>`;
+          }
+          if (leafletMap) {
+            updateUserMarkerOnMap();
+            leafletMap.setView([userCoords.lat, userCoords.lon], 7);
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Apply Crop filter
+  if (matchedCrop) {
+    selectCrop(matchedCrop);
+  } else {
+    const input = document.getElementById("cropInput");
+    if (input) {
+      input.value = rawText;
+      populateCropDropdown(rawText);
+    }
+  }
+
+  // Auto-search and announce feedback
+  const activeCrop = document.getElementById("cropValue")?.value;
+  if (matchedCrop || activeCrop) {
+    showToast(`Voice Filter: ${matchedCrop || activeCrop}${matchedState ? ` in ${matchedState}` : ""}`);
+    await fetchBestMandis();
+  } else {
+    showToast(`Heard: "${rawText}" (no crop matched)`, true);
+  }
 }
 
 // ── DARK MODE TOGGLE ──
