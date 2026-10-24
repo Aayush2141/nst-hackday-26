@@ -26,6 +26,11 @@ const I18N = {
     lblUnit: "Rs/quintal",
     lblSpeak: "Listen",
     lblDownload: "Download CSV",
+    lblMoreDetails: "More details (Judges)",
+    lblNearby: "Nearby",
+    rising: "Rising",
+    falling: "Falling",
+    flat: "Flat",
     lblMap: "Market map",
     lblChart: "Price trend",
     lblTable: "Nearby mandis",
@@ -74,11 +79,16 @@ const I18N = {
     lblWholeState: "पूरे राज्य में तुलना करें",
     lblSearch: "बेचने की सबसे अच्छी जगह खोजें",
     lblMobileSearch: "सबसे अच्छी मंडी खोजें",
-    lblBest: "बेचने की सर्वोत्तम मंडी",
-    lblNetPrice: "शुद्ध भाव (ढुलाई काट कर)",
-    lblUnit: "रुपये/क्विंटल",
+    lblBest: "बेचने के लिए सबसे अच्छी मंडी",
+    lblNetPrice: "आपको मिलेंगे",
+    lblUnit: "रुपये प्रति क्विंटल",
     lblSpeak: "सुनें",
     lblDownload: "CSV डाउनलोड करें",
+    lblMoreDetails: "विस्तृत जानकारी / More details (Judges)",
+    lblNearby: "आपके पास ही",
+    rising: "बढ़ रहा",
+    falling: "गिर रहा",
+    flat: "स्थिर",
     lblMap: "मंडियों का नक्शा",
     lblChart: "भाव का रुझान",
     lblTable: "आस-पास की मंडियाँ",
@@ -128,10 +138,15 @@ const I18N = {
     lblSearch: "विक्रीसाठी सर्वोत्तम बाजार शोधा",
     lblMobileSearch: "सर्वोत्तम बाजार शोधा",
     lblBest: "विक्रीसाठी सर्वोत्तम बाजार",
-    lblNetPrice: "निव्वळ भाव",
-    lblUnit: "रुपये/क्विंटल",
+    lblNetPrice: "तुम्हाला मिळतील",
+    lblUnit: "रुपये प्रति क्विंटल",
     lblSpeak: "ऐका",
     lblDownload: "CSV डाउनलोड",
+    lblMoreDetails: "सविस्तर माहिती / More details (Judges)",
+    lblNearby: "तुमच्या जवळच",
+    rising: "वाढत आहे",
+    falling: "कमी होत आहे",
+    flat: "स्थिर आहे",
     lblMap: "बाजाराचा नकाशा",
     lblChart: "भावाचा कल",
     lblTable: "जवळपासचे बाजार",
@@ -395,6 +410,195 @@ const CROP_LABELS = {
   Turmeric: { hi: "हल्दी", mr: "हळद", pa: "ਹਲਦੀ", gu: "હળદર", ta: "மஞ்சள்", te: "పసుపు" },
 };
 
+// ── HINDI LOCALISATION HELPERS ──
+
+// Crop emojis (inline, also filled from names_hi.json once loaded)
+const CROP_EMOJIS = {
+  Onion: "🧅", Tomato: "🍅", Potato: "🥔", Wheat: "🌾", Rice: "🌾",
+  Soybean: "🌱", Cotton: "☁️", Maize: "🌽", Mustard: "🌼", Garlic: "🧄",
+  Ginger: "🫚", Turmeric: "🟡", Chilli: "🌶️", Gram: "🫘", Apple: "🍎",
+  Banana: "🍌", Mango: "🥭", Orange: "🍊", Groundnut: "🥜", Brinjal: "🍆",
+  Cauliflower: "🥦", Cabbage: "🥬", Peas: "🫛", Carrot: "🥕", Lemon: "🍋",
+  Moong: "🫘", Arhar: "🫘", Urad: "🫘", Masur: "🫘", "Green Chilli": "🌶️",
+  Jowar: "🌾", Bajra: "🌾", Ragi: "🌾", Barley: "🌾", Sugarcane: "🎋",
+  Coriander: "🌿", Cumin: "🌿", Jute: "🌿",
+};
+
+// Runtime store for names_hi.json data (populated by loadAppMeta via /api/names_hi)
+let NAMES_HI = { crops: {}, states: {}, districts: {}, market_words: {}, phonetic: [] };
+
+async function loadNamesHi() {
+  try {
+    const res = await fetch("/api/names_hi");
+    if (!res.ok) return;
+    const data = await res.json();
+    NAMES_HI = {
+      crops: data.crops || {},
+      states: data.states || {},
+      districts: data.districts || {},
+      market_words: data.market_words || data.words || {},
+      phonetic: data.phonetic || [],
+    };
+    // Also fill CROP_EMOJIS from JSON if provided
+    if (data.crop_emojis) {
+      Object.assign(CROP_EMOJIS, data.crop_emojis);
+    }
+  } catch (e) {
+    console.warn("names_hi.json not loaded:", e);
+  }
+}
+
+function getHindiCrop(crop) {
+  return NAMES_HI.crops[crop] || CROP_LABELS[crop]?.hi || crop;
+}
+
+function getHindiState(st) {
+  return NAMES_HI.states[st] || st;
+}
+
+function getHindiDistrict(d) {
+  return NAMES_HI.districts[d] || d;
+}
+
+function transliterateMarket(name) {
+  if (!name) return name;
+  let result = name;
+  // Replace known market words
+  const mw = NAMES_HI.market_words || {};
+  for (const [en, hi] of Object.entries(mw)) {
+    const re = new RegExp("\\b" + en + "\\b", "gi");
+    result = result.replace(re, hi);
+  }
+  // Apply phonetic table for remaining ASCII segments
+  const pt = NAMES_HI.phonetic || [];
+  // Only transliterate remaining ASCII words
+  result = result.replace(/[A-Za-z]+/g, (word) => {
+    let out = word;
+    for (const [from, to] of pt) {
+      out = out.replace(new RegExp(from, "gi"), to);
+    }
+    return out;
+  });
+  return result;
+}
+
+// numberToHindiWords: converts integer to Hindi word form
+// e.g. 4500 → "चार हज़ार पाँच सौ", 25 → "पच्चीस"
+function numberToHindiWords(num) {
+  const ones = ["", "एक", "दो", "तीन", "चार", "पाँच", "छः", "सात", "आठ", "नौ",
+    "दस", "ग्यारह", "बारह", "तेरह", "चौदह", "पंद्रह", "सोलह", "सत्रह", "अठारह", "उन्नीस",
+    "बीस", "इक्कीस", "बाईस", "तेईस", "चौबीस", "पच्चीस", "छब्बीस", "सत्ताईस", "अट्ठाईस", "उनतीस",
+    "तीस", "इकतीस", "बत्तीस", "तैंतीस", "चौंतीस", "पैंतीस", "छत्तीस", "सैंतीस", "अड़तीस", "उनतालीस",
+    "चालीस", "इकतालीस", "बयालीस", "तैंतालीस", "चौंतालीस", "पैंतालीस", "छियालीस", "सैंतालीस", "अड़तालीस", "उनचास",
+    "पचास", "इक्यावन", "बावन", "तिरेपन", "चौवन", "पचपन", "छप्पन", "सत्तावन", "अट्ठावन", "उनसठ",
+    "साठ", "इकसठ", "बासठ", "तिरेसठ", "चौंसठ", "पैंसठ", "छियासठ", "सड़सठ", "अड़सठ", "उनहत्तर",
+    "सत्तर", "इकहत्तर", "बहत्तर", "तिहत्तर", "चौहत्तर", "पचहत्तर", "छिहत्तर", "सतहत्तर", "अठहत्तर", "उनासी",
+    "अस्सी", "इक्यासी", "बयासी", "तिरासी", "चौरासी", "पचासी", "छियासी", "सतासी", "अठासी", "नवासी",
+    "नब्बे", "इक्यानवे", "बानवे", "तिरानवे", "चौरानवे", "पचानवे", "छियानवे", "सत्तानवे", "अट्ठानवे", "निन्यानवे"
+  ];
+  const hundreds = ["", "एक सौ", "दो सौ", "तीन सौ", "चार सौ", "पाँच सौ",
+    "छः सौ", "सात सौ", "आठ सौ", "नौ सौ"];
+
+  if (!num || isNaN(num)) return "";
+  num = Math.round(Math.abs(num));
+  if (num === 0) return "शून्य";
+
+  let result = "";
+  if (num >= 100000) {
+    const lakh = Math.floor(num / 100000);
+    result += (lakh < 100 ? ones[lakh] : numberToHindiWords(lakh)) + " लाख ";
+    num %= 100000;
+  }
+  if (num >= 1000) {
+    const haz = Math.floor(num / 1000);
+    result += (haz < 100 ? ones[haz] : numberToHindiWords(haz)) + " हज़ार ";
+    num %= 1000;
+  }
+  if (num >= 100) {
+    result += hundreds[Math.floor(num / 100)] + " ";
+    num %= 100;
+  }
+  if (num > 0) {
+    result += ones[num];
+  }
+  return result.trim();
+}
+
+// Build the spoken Hindi answer from computed values
+function buildSpokenAnswer(best, crop, trendSignal) {
+  const cropHi = getHindiCrop(crop);
+  const marketHi = transliterateMarket(best.market);
+  const districtHi = getHindiDistrict(best.district);
+  const priceRounded = Math.round(best.net_price / 10) * 10;
+  const priceWords = numberToHindiWords(priceRounded);
+  const distKm = best.distance_km || 0;
+  const distRounded = Math.max(5, Math.round(distKm / 5) * 5);
+  const distWords = numberToHindiWords(distRounded);
+  const isNearby = distKm < 5;
+
+  let sentence;
+  if (isNearby) {
+    sentence = `${cropHi} बेचने के लिए सबसे अच्छी मंडी ${marketHi} है। यह ${districtHi} में है। मंडी आपके पास ही है। यहाँ आपको लगभग ${priceWords} रुपये प्रति क्विंटल मिलेंगे।`;
+  } else {
+    sentence = `${cropHi} बेचने के लिए सबसे अच्छी मंडी ${marketHi} है। यह ${districtHi} में है। यहाँ आपको लगभग ${priceWords} रुपये प्रति क्विंटल मिलेंगे। दूरी लगभग ${distWords} किलोमीटर है।`;
+  }
+
+  // Trend sentence
+  if (trendSignal === "rising") {
+    sentence += " भाव बढ़ रहा है, थोड़ा रुक सकते हैं।";
+  } else if (trendSignal === "falling") {
+    sentence += " भाव गिर रहा है, जल्दी बेचना अच्छा रहेगा।";
+  } else if (trendSignal === "flat") {
+    sentence += " भाव स्थिर है।";
+  }
+
+  return sentence;
+}
+
+// Auto-speak the Hindi summary using hi-IN voice
+let hindiSpokenText = "";
+function speakHindiSummary(text) {
+  hindiSpokenText = text || hindiSpokenText;
+  if (!hindiSpokenText) return;
+  if (!window.speechSynthesis) {
+    showToast("आपके ब्राउज़र में आवाज़ उपलब्ध नहीं है।");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  function doSpeak() {
+    const utt = new SpeechSynthesisUtterance(hindiSpokenText);
+    utt.lang = "hi-IN";
+    utt.rate = 0.85;
+
+    // Try to select a hi-IN voice
+    const voices = window.speechSynthesis.getVoices();
+    const hiVoice = voices.find(v => v.lang === "hi-IN" || v.lang.startsWith("hi"));
+    if (hiVoice) {
+      utt.voice = hiVoice;
+    } else {
+      console.info("No hi-IN voice found. Available voices:", voices.map(v => v.lang + " " + v.name));
+    }
+
+    const soundwave = document.getElementById("soundwave");
+    isSpeaking = true;
+    speechUtterance = utt;
+
+    utt.onend = () => { isSpeaking = false; if (soundwave) { soundwave.classList.add("hidden"); soundwave.classList.remove("active"); } };
+    utt.onerror = () => { isSpeaking = false; if (soundwave) { soundwave.classList.add("hidden"); soundwave.classList.remove("active"); } };
+
+    if (soundwave) { soundwave.classList.remove("hidden"); soundwave.classList.add("active"); }
+    window.speechSynthesis.speak(utt);
+  }
+
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; doSpeak(); };
+  } else {
+    doSpeak();
+  }
+}
+
 // ── GLOBAL APPLICATION STATE ──
 let currentLang = "en";
 let appMeta = null;
@@ -450,6 +654,8 @@ function applyLanguage(newLang) {
   setSaved("ms_lang", currentLang);
 
   document.documentElement.lang = currentLang;
+  // Set data-lang on body for CSS selectors
+  document.body.setAttribute("data-lang", currentLang);
 
   // Update active lang button
   document.querySelectorAll(".lang-btn").forEach((btn) => {
@@ -471,12 +677,38 @@ function applyLanguage(newLang) {
     if (el && dict[id]) el.textContent = dict[id];
   });
 
+  // Update crop input placeholder
+  const cropInput = document.getElementById("cropInput");
+  if (cropInput) {
+    if (currentLang === "hi" || currentLang === "mr") {
+      cropInput.placeholder = "फसल खोजें… (उदा. प्याज, टमाटर, गेहूं)";
+    } else {
+      cropInput.placeholder = "Search crops…";
+    }
+  }
+
   // Re-render crop chips with regional labels
   renderPopularCrops();
 
-  // If results are currently showing, update the explanation language
+  // Re-render state/district dropdowns with regional labels
+  if (appMeta) {
+    populateStateSelect();
+    // If a state is selected, re-render districts too
+    const stateSel = document.getElementById("stateSelect");
+    if (stateSel && stateSel.value) {
+      onStateChanged();
+      // Restore district selection
+      const distSel = document.getElementById("districtSelect");
+      if (distSel && userCoords.district) distSel.value = userCoords.district;
+    }
+  }
+
+  // If results are currently showing, re-render them in new language
   if (currentResults && currentResults.best) {
-    fetchExplanation();
+    const crop = document.getElementById("cropValue")?.value;
+    const rate = parseFloat(document.getElementById("rateSlider")?.value || "2.5");
+    const radius = parseFloat(document.getElementById("radiusSlider")?.value || "300");
+    renderSuccessView(currentResults, crop, rate, radius);
   }
 
   // Update banner text
@@ -631,10 +863,16 @@ function selectCrop(crop) {
   const hidden = document.getElementById("cropValue");
   const dropdown = document.getElementById("cropDropdown");
 
-  const labelObj = CROP_LABELS[crop];
-  const regional = labelObj && labelObj[currentLang] ? ` (${labelObj[currentLang]})` : "";
-
-  if (input) input.value = `${crop}${regional}`;
+  const isHindi = (currentLang === "hi" || currentLang === "mr");
+  if (isHindi) {
+    const emoji = CROP_EMOJIS[crop] || "";
+    const hindiName = getHindiCrop(crop);
+    if (input) input.value = emoji ? `${emoji} ${hindiName}` : hindiName;
+  } else {
+    const labelObj = CROP_LABELS[crop];
+    const regional = labelObj && labelObj[currentLang] ? ` (${labelObj[currentLang]})` : "";
+    if (input) input.value = `${crop}${regional}`;
+  }
   if (hidden) hidden.value = crop;
   if (dropdown) dropdown.classList.add("hidden");
 
@@ -656,15 +894,23 @@ function renderPopularCrops() {
   const toShow = available.length > 0 ? available : appMeta.crops.slice(0, 6);
 
   const selectedCrop = document.getElementById("cropValue")?.value;
+  const isHindi = (currentLang === "hi" || currentLang === "mr");
 
   toShow.forEach((crop) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = `crop-chip ${selectedCrop === crop ? "active" : ""}`;
     chip.dataset.crop = crop;
-    const labelObj = CROP_LABELS[crop];
-    const regional = labelObj && labelObj[currentLang] ? labelObj[currentLang] : (labelObj && labelObj.hi ? labelObj.hi : crop);
-    chip.textContent = `${crop} (${regional})`;
+    const emoji = CROP_EMOJIS[crop] || "";
+    if (isHindi) {
+      // Show only Hindi name + emoji, no English
+      const hindiName = getHindiCrop(crop);
+      chip.textContent = emoji ? `${emoji} ${hindiName}` : hindiName;
+    } else {
+      const labelObj = CROP_LABELS[crop];
+      const regional = labelObj && labelObj[currentLang] ? labelObj[currentLang] : (labelObj && labelObj.hi ? labelObj.hi : crop);
+      chip.textContent = `${crop} (${regional})`;
+    }
     chip.onclick = () => selectCrop(crop);
     container.appendChild(chip);
   });
@@ -674,14 +920,18 @@ function renderPopularCrops() {
 function populateStateSelect() {
   const sel = document.getElementById("stateSelect");
   if (!sel || !appMeta || !appMeta.states) return;
+  const isHindi = (currentLang === "hi" || currentLang === "mr");
 
+  // Preserve the currently selected value
+  const prevVal = sel.value;
   sel.innerHTML = `<option value="">${t("lblSelectState")}</option>`;
   appMeta.states.forEach((st) => {
     const opt = document.createElement("option");
     opt.value = st;
-    opt.textContent = st;
+    opt.textContent = isHindi ? getHindiState(st) : st;
     sel.appendChild(opt);
   });
+  if (prevVal) sel.value = prevVal;
 }
 
 function onStateChanged() {
@@ -693,6 +943,7 @@ function onStateChanged() {
   if (geoBtn) geoBtn.classList.remove("active");
 
   const state = stateSel.value;
+  const isHindi = (currentLang === "hi" || currentLang === "mr");
   distSel.innerHTML = `<option value="">${t("lblSelectDistrict")}</option>`;
 
   if (!state) {
@@ -709,7 +960,7 @@ function onStateChanged() {
   uniqueDistricts.forEach((d) => {
     const opt = document.createElement("option");
     opt.value = d;
-    opt.textContent = d;
+    opt.textContent = isHindi ? getHindiDistrict(d) : d;
     distSel.appendChild(opt);
   });
 
@@ -1258,6 +1509,7 @@ function renderSuccessView(data, crop, rate, radius) {
   const best = data.best;
   const runnerUp = data.runner_up;
   const ranked = data.ranked || [];
+  const isHindi = (currentLang === "hi" || currentLang === "mr");
 
   // Hero Card entrance pop
   const heroCard = document.getElementById("bestPlaceCard");
@@ -1279,28 +1531,55 @@ function renderSuccessView(data, crop, rate, radius) {
   const staleBadge = document.getElementById("staleBadge");
   const approxBadge = document.getElementById("approxBadge");
 
-  if (bestMarket) bestMarket.textContent = best.market;
-  if (bestLocation) bestLocation.textContent = `${best.district}, ${best.state}`;
-
-  if (bestNet) animateNumber(bestNet, Math.round(best.net_price), 800);
-  if (bestDist) bestDist.textContent = `${best.distance_km} km`;
-  if (bestTransport) bestTransport.textContent = `Transport: ₹${best.transport_cost}/q`;
-  if (bestDate) bestDate.textContent = best.price_date || best.arrival_date || "Recent";
-
-  // Trend Badge with subtle micro-bounce
-  if (trendBadge && data.trend) {
-    const sig = data.trend.signal || "flat";
-    const arrow = sig === "rising" ? "▲" : sig === "falling" ? "▼" : "●";
-    const pctVal = data.trend.percent_change_7d !== undefined ? data.trend.percent_change_7d : data.trend.pct_change;
-    const pct = pctVal !== undefined && pctVal !== null ? ` (${pctVal > 0 ? "+" : ""}${pctVal}%)` : "";
-    const bounceClass = sig === "rising" ? " trend-bounce-up" : sig === "falling" ? " trend-bounce-down" : " trend-pulse";
-    trendBadge.className = `trend-badge ${sig}${bounceClass}`;
-    trendBadge.textContent = `${arrow} ${t(sig)} ${pct}`;
+  if (isHindi) {
+    // Show Devanagari market/district names
+    if (bestMarket) bestMarket.textContent = transliterateMarket(best.market);
+    if (bestLocation) bestLocation.textContent = `${getHindiDistrict(best.district)}, ${getHindiState(best.state)}`;
+  } else {
+    if (bestMarket) bestMarket.textContent = best.market;
+    if (bestLocation) bestLocation.textContent = `${best.district}, ${best.state}`;
   }
 
-  // Gain Badge with pop bounce
+  if (bestNet) animateNumber(bestNet, Math.round(best.net_price), 800);
+
+  // Distance: show Hindi "आपके पास ही" if < 5 km
+  if (bestDist) {
+    if (isHindi && best.distance_km < 5) {
+      bestDist.textContent = t("lblNearby");
+    } else {
+      bestDist.textContent = `${best.distance_km} km`;
+    }
+  }
+
+  if (bestTransport) {
+    if (isHindi) {
+      bestTransport.textContent = `ढुलाई: ₹${best.transport_cost}/क्विंटल`;
+    } else {
+      bestTransport.textContent = `Transport: ₹${best.transport_cost}/q`;
+    }
+  }
+  if (bestDate) bestDate.textContent = best.price_date || best.arrival_date || "Recent";
+
+  // Trend Badge
+  const trendSignal = data.trend ? (data.trend.signal || "flat") : "flat";
+  if (trendBadge && data.trend) {
+    const sig = trendSignal;
+    const arrow = sig === "rising" ? "▲" : sig === "falling" ? "▼" : "●";
+    const bounceClass = sig === "rising" ? " trend-bounce-up" : sig === "falling" ? " trend-bounce-down" : " trend-pulse";
+    trendBadge.className = `trend-badge ${sig}${bounceClass}`;
+    if (isHindi) {
+      // Hindi: just arrow + one Hindi word, no percentage
+      trendBadge.textContent = `${arrow} ${t(sig)}`;
+    } else {
+      const pctVal = data.trend.percent_change_7d !== undefined ? data.trend.percent_change_7d : data.trend.pct_change;
+      const pct = pctVal !== undefined && pctVal !== null ? ` (${pctVal > 0 ? "+" : ""}${pctVal}%)` : "";
+      trendBadge.textContent = `${arrow} ${t(sig)} ${pct}`;
+    }
+  }
+
+  // Gain Badge (hide in Hindi farmer view)
   if (gainBadge) {
-    if (data.difference_rs && data.difference_rs > 0) {
+    if (!isHindi && data.difference_rs && data.difference_rs > 0) {
       gainBadge.textContent = t("gainBadge", Math.round(data.difference_rs));
       gainBadge.className = "gain-badge gain-bounce";
       gainBadge.classList.remove("hidden");
@@ -1322,7 +1601,7 @@ function renderSuccessView(data, crop, rate, radius) {
   // Calculation details
   renderCalculation(best, rate);
 
-  // Render Map
+  // Render Map (inside moreDetailsSection)
   initLeafletMap();
   setTimeout(() => {
     leafletMap.invalidateSize();
@@ -1335,25 +1614,35 @@ function renderSuccessView(data, crop, rate, radius) {
   // Load Trend Chart
   loadPriceTrend(crop, best.market, 30);
 
-  // Pre-populate explanation immediately so it is never blank!
+  // Explanation text
   const explainText = document.getElementById("explainText");
   const explainSource = document.getElementById("explainSource");
   const hintText = document.getElementById("hintText");
 
-  if (explainText) {
-    explainText.textContent = data.explanation || "Optimal mandi calculated from modal price and transport distance.";
+  if (isHindi) {
+    // Build Hindi spoken answer and display it as explanation
+    const spoken = buildSpokenAnswer(best, crop, trendSignal);
+    hindiSpokenText = spoken;
+    if (explainText) explainText.textContent = spoken;
+    if (explainSource) explainSource.textContent = "";
+    if (hintText) hintText.textContent = "";
+    // Auto-speak after a short delay so UI renders first
+    setTimeout(() => speakHindiSummary(spoken), 600);
+  } else {
+    if (explainText) {
+      explainText.textContent = data.explanation || "Optimal mandi calculated from modal price and transport distance.";
+    }
+    if (explainSource) {
+      explainSource.textContent = "Generated by verified calculation template";
+    }
+    if (hintText && data.trend && data.trend.hint) {
+      const hintObj = data.trend.hint;
+      const hintStr = typeof hintObj === "string" ? hintObj : (hintObj.text || hintObj.text_en || "");
+      if (hintStr) hintText.textContent = `💡 Hint: ${hintStr}`;
+    }
+    // Fetch LLM / Template Explanation asynchronously
+    fetchExplanation();
   }
-  if (explainSource) {
-    explainSource.textContent = "Generated by verified calculation template";
-  }
-  if (hintText && data.trend && data.trend.hint) {
-    const hintObj = data.trend.hint;
-    const hintStr = typeof hintObj === "string" ? hintObj : (hintObj.text || hintObj.text_en || "");
-    if (hintStr) hintText.textContent = `💡 Hint: ${hintStr}`;
-  }
-
-  // Fetch LLM / Template Explanation asynchronously
-  fetchExplanation();
 }
 
 function renderCalculation(best, rate) {
@@ -2035,9 +2324,38 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // 11. TTS & Download CSV
-  document.getElementById("speakBtn")?.addEventListener("click", toggleSpeech);
+  document.getElementById("speakBtn")?.addEventListener("click", () => {
+    const isHindi = (currentLang === "hi" || currentLang === "mr");
+    if (isHindi && hindiSpokenText) {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        const sw = document.getElementById("soundwave");
+        if (sw) { sw.classList.add("hidden"); sw.classList.remove("active"); }
+      } else {
+        speakHindiSummary(hindiSpokenText);
+      }
+    } else {
+      toggleSpeech();
+    }
+  });
   document.getElementById("downloadBtn")?.addEventListener("click", downloadCsv);
   document.getElementById("csvBtn")?.addEventListener("click", downloadCsv);
+
+  // 11b. More Details toggle (for judges)
+  document.getElementById("moreDetailsBtn")?.addEventListener("click", () => {
+    const section = document.getElementById("moreDetailsSection");
+    const arrow = document.getElementById("moreDetailsArrow");
+    const btn = document.getElementById("moreDetailsBtn");
+    if (!section) return;
+    const isHidden = section.classList.toggle("hidden");
+    if (arrow) arrow.textContent = isHidden ? "▼" : "▲";
+    if (btn) btn.setAttribute("aria-expanded", (!isHidden).toString());
+    // Invalidate map size after expand so tiles load correctly
+    if (!isHidden && leafletMap) {
+      setTimeout(() => leafletMap.invalidateSize(), 200);
+    }
+  });
 
   // 12. Table sorting
   setupTableSorting();
@@ -2049,7 +2367,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const savedLang = getSaved("ms_lang", "en");
   applyLanguage(savedLang);
 
-  // 15. Load initial metadata
+  // 15. Load initial metadata + Hindi names
+  loadNamesHi();
   loadAppMeta();
 
   // 16. Button Ripple Animation
