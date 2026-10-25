@@ -335,20 +335,20 @@
             </div>
 
             <div class="card-actions">
-              <button type="button" id="speakBtn" class="secondary-btn">
+              <button type="button" id="speakBtn" class="primary-listen-btn">
                 <span class="soundwave hidden" id="soundwave" aria-hidden="true">
                   <span class="bar bar-1"></span>
                   <span class="bar bar-2"></span>
                   <span class="bar bar-3"></span>
                 </span>
-                <svg class="btn-icon" id="speakIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg class="btn-icon" id="speakIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                   <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
                   <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
                 </svg>
-                <span id="lblSpeak">Listen</span>
+                <span id="lblSpeak">सुनें / Listen</span>
               </button>
-              <button type="button" id="downloadBtn" class="secondary-btn">
+              <button type="button" id="downloadBtn" class="secondary-btn tech-detail hidden">
                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -359,67 +359,81 @@
             </div>
           </section>
 
-          <!-- 2. MAP -->
-          <section class="card map-card">
-            <h3 id="lblMap">Market map</h3>
-            <div id="map" role="img" aria-label="Map of nearby mandis"></div>
-          </section>
+          <!-- TOGGLE FOR JUDGES (MORE DETAILS) -->
+          <div class="judge-toggle-wrap">
+            <button type="button" id="moreDetailsBtn" class="judge-toggle-btn" aria-expanded="true" aria-controls="moreDetailsSection">
+              <span class="judge-icon">🔍</span>
+              <span id="lblMoreDetails">विस्तृत जानकारी / More details (Judges)</span>
+              <span id="moreDetailsArrow" class="judge-arrow">▲</span>
+            </button>
+          </div>
 
-          <!-- 3. PRICE CHART -->
-          <section class="card chart-card">
-            <div class="chart-header">
-              <h3 id="lblChart">Price trend</h3>
-              <div class="chart-tabs" role="tablist">
-                <button type="button" class="tab-btn active" data-days="30" role="tab" aria-selected="true" id="tab30">30d</button>
-                <button type="button" class="tab-btn" data-days="7" role="tab" aria-selected="false" id="tab7">7d</button>
+          <!-- MORE DETAILS SECTION (Map, Chart, Table, Ollama explanation, CSV) -->
+          <div id="moreDetailsSection" class="more-details-section">
+
+            <!-- 2. MAP -->
+            <section class="card map-card">
+              <h3 id="lblMap">Market map</h3>
+              <div id="map" role="img" aria-label="Map of nearby mandis"></div>
+            </section>
+
+            <!-- 3. PRICE CHART -->
+            <section class="card chart-card">
+              <div class="chart-header">
+                <h3 id="lblChart">Price trend</h3>
+                <div class="chart-tabs" role="tablist">
+                  <button type="button" class="tab-btn active" data-days="30" role="tab" aria-selected="true" id="tab30">30d</button>
+                  <button type="button" class="tab-btn" data-days="7" role="tab" aria-selected="false" id="tab7">7d</button>
+                </div>
               </div>
-            </div>
-            <p id="chartMarket" class="chart-market-label"></p>
-            <div class="chart-wrap" id="chartWrap">
-              <canvas id="chart" aria-label="Price trend chart"></canvas>
-            </div>
-            <p id="chartNote" class="chart-single-note hidden"></p>
-          </section>
+              <p id="chartMarket" class="chart-market-label"></p>
+              <div class="chart-wrap" id="chartWrap">
+                <canvas id="chart" aria-label="Price trend chart"></canvas>
+              </div>
+              <p id="chartNote" class="chart-single-note hidden"></p>
+            </section>
 
-          <!-- 4. RANKED TABLE -->
-          <section class="card table-card">
-            <div class="table-header">
-              <h3 id="lblTable">Nearby mandis</h3>
-              <button type="button" id="csvBtn" class="secondary-btn small">
-                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                <span>CSV</span>
-              </button>
-            </div>
-            <div class="table-wrap" role="region" aria-label="Mandi rankings table" tabindex="0">
-              <table id="rankTable" aria-describedby="lblTable">
-                <thead>
-                  <tr>
-                    <th scope="col" id="thRank">#</th>
-                    <th scope="col" id="thMarket" class="sortable" data-col="market">Market</th>
-                    <th scope="col" id="thState" class="sortable" data-col="state">State</th>
-                    <th scope="col" id="thDist" class="sortable" data-col="distance_km">Distance</th>
-                    <th scope="col" id="thModal" class="sortable" data-col="modal_price">Modal</th>
-                    <th scope="col" id="thTransport" class="sortable" data-col="transport_cost">Transport</th>
-                    <th scope="col" id="thNet" class="sortable" data-col="net_price">Net ↕</th>
-                    <th scope="col" id="thDate">Date</th>
-                  </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-              </table>
-            </div>
-          </section>
+            <!-- 4. RANKED TABLE -->
+            <section class="card table-card">
+              <div class="table-header">
+                <h3 id="lblTable">Nearby mandis</h3>
+                <button type="button" id="csvBtn" class="secondary-btn small">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>CSV</span>
+                </button>
+              </div>
+              <div class="table-wrap" role="region" aria-label="Mandi rankings table" tabindex="0">
+                <table id="rankTable" aria-describedby="lblTable">
+                  <thead>
+                    <tr>
+                      <th scope="col" id="thRank">#</th>
+                      <th scope="col" id="thMarket" class="sortable" data-col="market">Market</th>
+                      <th scope="col" id="thState" class="sortable" data-col="state">State</th>
+                      <th scope="col" id="thDist" class="sortable" data-col="distance_km">Distance</th>
+                      <th scope="col" id="thModal" class="sortable" data-col="modal_price">Modal</th>
+                      <th scope="col" id="thTransport" class="sortable" data-col="transport_cost">Transport</th>
+                      <th scope="col" id="thNet" class="sortable" data-col="net_price">Net ↕</th>
+                      <th scope="col" id="thDate">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableBody"></tbody>
+                </table>
+              </div>
+            </section>
 
-          <!-- 5. HOW IT WORKS COLLAPSIBLE -->
-          <section class="card calc-card">
-            <details id="calcDetails">
-              <summary id="lblHowCalc">How this was calculated</summary>
-              <div class="calc-content" id="calcContent"></div>
-            </details>
-          </section>
+            <!-- 5. HOW IT WORKS COLLAPSIBLE -->
+            <section class="card calc-card">
+              <details id="calcDetails" open>
+                <summary id="lblHowCalc">How this was calculated</summary>
+                <div class="calc-content" id="calcContent"></div>
+              </details>
+            </section>
+
+          </div><!-- end moreDetailsSection -->
 
         </div><!-- end stateSuccess -->
       </main>
